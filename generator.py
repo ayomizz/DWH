@@ -86,7 +86,6 @@ def generate_plsql(p: dict) -> str:
     # 5. Подписки на потоки
     # ─────────────────────────────────────────────
     L.append("  -- Создаём подписки на потоки")
-    L.append("  -- eventget_id выбирается согласно типу события (https://kb-liga.phoenixit.ru/pages/viewpage.action?pageId=133676447)")
 
     if len(source_wfs) == 0:
         # Нет источников — оставляем закомментированный шаблон
