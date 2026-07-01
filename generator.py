@@ -36,6 +36,7 @@ def generate_plsql(p: dict) -> str:
     sessions   = p.get('sessions', [])
     source_wfs = p.get('source_workflows', [])
     table_type = p.get('table_type', 'OTHER')
+    dnm        = p.get('_dnmparam_schema', 'YOURSCHEMA')
 
     L = []
 
@@ -158,16 +159,16 @@ def generate_plsql(p: dict) -> str:
         cmt = f"  -- {comment}" if comment else ""
         L.append(f"  a:= UTL_MD_UPSERT.upsert_DYNAMPARAM({_q(param)}, {_q(func)}, v_folder_name, v_workflow_name, {_q(scope)}, v_patch_code);{cmt}")
 
-    dyn('$$P_AS_OF_DAY',          'DNMPARAM_YOURSCHEMA.P_AS_OF_DAY')
-    dyn('$$P_DMSJOB',             'DNMPARAM_YOURSCHEMA.P_DWSJOB')
-    dyn('$$P_AS_OF_DAY_AND_TIME', 'DNMPARAM_YOURSCHEMA.P_AS_OF_DAY_AND_TIME')
-    dyn('$$P_OPERATION_DAY',      'DNMPARAM_YOURSCHEMA.P_OPERATION_DAY')
+    dyn('$$P_AS_OF_DAY',          f'DNMPARAM_{dnm}.P_AS_OF_DAY')
+    dyn('$$P_DMSJOB',             f'DNMPARAM_{dnm}.P_DWSJOB')
+    dyn('$$P_AS_OF_DAY_AND_TIME', f'DNMPARAM_{dnm}.P_AS_OF_DAY_AND_TIME')
+    dyn('$$P_OPERATION_DAY',      f'DNMPARAM_{dnm}.P_OPERATION_DAY')
 
     if sessions:
         L.append("")
         L.append("  -- $PMSESSIONLOGFILE — задать для каждой сессии")
         for sess in sessions:
-            dyn('$PMSESSIONLOGFILE', 'DNMPARAM_YOURSCHEMA.PMSESSIONLOGFILE', sess)
+            dyn('$PMSESSIONLOGFILE', f'DNMPARAM_{dnm}.PMSESSIONLOGFILE', sess)
 
     L.append("")
 
