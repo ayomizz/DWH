@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IPC Release Tool</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:    #2563eb;
+      --blue-h:  #1d4ed8;
+      --green:   #16a34a;
+      --red:     #dc2626;
+      --gray-50: #f8fafc;
+      --gray-100:#f1f5f9;
+      --gray-200:#e2e8f0;
+      --gray-400:#94a3b8;
+      --gray-600:#475569;
+      --gray-800:#1e293b;
+      --border:  #e2e8f0;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      background: var(--gray-100);
+      color: var(--gray-800);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--blue);
+      color: #fff;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,.18);
+    }
+    header h1 { font-size: 17px; font-weight: 600; letter-spacing: .3px; }
+    header span { font-size: 12px; opacity: .8; }
+
+    /* ── MAIN LAYOUT ── */
+    main {
+      display: grid;
+      grid-template-columns: 440px 1fr;
+      gap: 0;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── LEFT PANEL ── */
+    .panel-left {
+      background: #fff;
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* ── RIGHT PANEL ── */
+    .panel-right {
+      background: var(--gray-50);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .panel-right-header {
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fff;
+      flex-shrink: 0;
+    }
+    .panel-right-header span { font-weight: 600; font-size: 13px; color: var(--gray-600); }
+    .sql-actions { display: flex; gap: 8px; }
+
+    #sqlOutput {
+      flex: 1;
+      width: 100%;
+      border: none;
+      outline: none;
+      resize: none;
+      padding: 16px 20px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 12.5px;
+      line-height: 1.6;
+      background: var(--gray-50);
+      color: var(--gray-800);
+    }
+    #sqlOutput::placeholder { color: var(--gray-400); }
+
+    /* ── SECTION ── */
+    .section {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .section-title {
+      background: var(--gray-100);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .6px;
+      text-transform: uppercase;
+      color: var(--gray-600);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .badge-auto {
+      font-size: 9px;
+      background: #dbeafe;
+      color: #1d4ed8;
+      border-radius: 10px;
+      padding: 1px 6px;
+      font-weight: 600;
+      letter-spacing: .3px;
+    }
+    .badge-manual {
+      font-size: 9px;
+      background: #dcfce7;
+      color: #166534;
+      border-radius: 10px;
+      padding: 1px 6px;
+      font-weight: 600;
+      letter-spacing: .3px;
+    }
+    .section-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+
+    /* ── UPLOAD ZONE ── */
+    #dropZone {
+      border: 2px dashed var(--blue);
+      border-radius: 8px;
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: background .15s;
+      color: var(--blue);
+    }
+    #dropZone:hover, #dropZone.drag-over { background: #eff6ff; }
+    #dropZone .icon { font-size: 28px; margin-bottom: 6px; }
+    #dropZone p { font-size: 13px; font-weight: 500; }
+    #dropZone small { color: var(--gray-400); font-size: 11px; }
+    #dropZone.parsed { border-color: var(--green); color: var(--green); background: #f0fdf4; }
+    #fileInput { display: none; }
+
+    /* ── FORM FIELD ── */
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--gray-600);
+      letter-spacing: .2px;
+    }
+    .field input, .field select, .field textarea {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      transition: border-color .15s;
+      background: #fff;
+      color: var(--gray-800);
+      width: 100%;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px #dbeafe;
+    }
+    .field input[readonly] {
+      background: var(--gray-100);
+      color: var(--gray-600);
+    }
+    .field.required label::after { content: ' *'; color: var(--red); }
+    .field textarea { resize: vertical; min-height: 54px; }
+
+    /* ── SESSIONS LIST ── */
+    #sessionsList {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-height: 30px;
+    }
+    .session-tag {
+      background: #dbeafe;
+      color: #1d4ed8;
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-family: 'Consolas', monospace;
+    }
+    .sessions-empty { color: var(--gray-400); font-size: 12px; }
+
+    /* ── SOURCE WORKFLOWS TABLE ── */
+    .sw-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 30px;
+      gap: 6px;
+      align-items: start;
+    }
+    .sw-row.header { font-size: 10px; font-weight: 700; color: var(--gray-400); letter-spacing: .3px; }
+    .sw-row input { padding: 5px 8px; font-size: 12px; }
+    .btn-del {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      cursor: pointer;
+      color: var(--red);
+      font-size: 14px;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-del:hover { background: #fee2e2; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      border: none;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background .15s, opacity .15s;
+    }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary  { background: var(--blue);  color: #fff; }
+    .btn-primary:not(:disabled):hover  { background: var(--blue-h); }
+    .btn-success  { background: var(--green); color: #fff; }
+    .btn-success:not(:disabled):hover  { background: #15803d; }
+    .btn-ghost    { background: var(--gray-100); color: var(--gray-600); border: 1px solid var(--border); }
+    .btn-ghost:not(:disabled):hover    { background: var(--gray-200); }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+    #btnGenerate {
+      width: 100%;
+      justify-content: center;
+      padding: 11px;
+      font-size: 14px;
+    }
+
+    /* ── SPINNER ── */
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid #fff4;
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      display: none;
+    }
+    .loading .spinner { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--gray-800);
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity .25s, transform .25s;
+      pointer-events: none;
+      z-index: 100;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.error { background: var(--red); }
+
+    /* ── TABLE TYPE SELECTOR ── */
+    .type-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .type-opt {
+      border: 2px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 4px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--gray-600);
+      transition: all .15s;
+      user-select: none;
+    }
+    .type-opt:hover { border-color: var(--blue); color: var(--blue); }
+    .type-opt.selected { border-color: var(--blue); background: #dbeafe; color: var(--blue); }
+    .type-opt small { display: block; font-weight: 400; color: var(--gray-400); margin-top: 2px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>📦</div>
+  <div>
+    <h1>IPC Release Tool</h1>
+    <span>Автоматизация регистрации потоков Informatica PowerCenter</span>
+  </div>
+</header>
+
+<main>
+  <!-- ═══════════════════════════════ LEFT PANEL ═══════════════════════════════ -->
+  <div class="panel-left">
+
+    <!-- UPLOAD -->
+    <div class="section">
+      <div class="section-title">📂 XML-файл</div>
+      <div class="section-body">
+        <div id="dropZone" onclick="document.getElementById('fileInput').click()">
+          <div class="icon">⬆️</div>
+          <p>Перетащите или нажмите для выбора</p>
+          <small>Экспорт Workflow из Informatica PowerCenter (.xml)</small>
+        </div>
+        <input type="file" id="fileInput" accept=".xml">
+      </div>
+    </div>
+
+    <!-- AUTO-FILLED FROM XML -->
+    <div class="section">
+      <div class="section-title">🔍 Из XML <span class="badge-auto">авто</span></div>
+      <div class="section-body">
+        <div class="field">
+          <label>Папка (v_folder_name)</label>
+          <input type="text" id="f_folder_name" readonly placeholder="Заполнится после загрузки XML">
+        </div>
+        <div class="field">
+          <label>Воркфлоу (v_workflow_name)</label>
+          <input type="text" id="f_workflow_name" readonly placeholder="Заполнится после загрузки XML">
+        </div>
+        <div class="field">
+          <label>Описание FSD (UPSERT_WF)</label>
+          <textarea id="f_fsd_description" rows="2" placeholder="Заполнится после загрузки XML"></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="field">
+            <label>Схема цели (v_tgt_schema)</label>
+            <input type="text" id="f_tgt_schema" placeholder="напр. YOUR_TGT_SCHEMA">
+          </div>
+          <div class="field">
+            <label>Целевая таблица</label>
+            <input type="text" id="f_target_name" placeholder="напр. YOUR_TARGET_TABLE">
+          </div>
+        </div>
+
+        <!-- Тип таблицы -->
+        <div class="field">
+          <label>Тип таблицы (доп. параметры)</label>
+          <div class="type-grid">
+            <div class="type-opt selected" data-type="OTHER" onclick="selectType(this)">
+              OTHER<small>без доп.</small>
+            </div>
+            <div class="type-opt" data-type="SHIST" onclick="selectType(this)">
+              _SHIST<small>удал. флаг</small>
+            </div>
+            <div class="type-opt" data-type="STRAN_AGG" onclick="selectType(this)">
+              _STRAN/AGG<small>truncate</small>
+            </div>
+            <div class="type-opt" data-type="HDIM" onclick="selectType(this)">
+              _HDIM<small>без доп.</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Сессии -->
+        <div class="field">
+          <label>Сессии воркфлоу ($PMSESSIONLOGFILE)</label>
+          <div id="sessionsList"><span class="sessions-empty">Загрузите XML</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MANUAL INPUT -->
+    <div class="section">
+      <div class="section-title">✏️ Вводится вручную <span class="badge-manual">ввод</span></div>
+      <div class="section-body">
+        <div class="field required">
+          <label>Номер задачи JIRA (v_patch_code)</label>
+          <input type="text" id="f_patch_code" placeholder="напр. PROJECT-12345">
+        </div>
+        <div class="field">
+          <label>Регламент (v_reg_name)</label>
+          <input type="text" id="f_reg_name" value="WF_REG_YOUR_SCHEMA_REGULAR_DWH">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="field">
+            <label>Схема источника ($$P_SRC_SCHEMA)</label>
+            <input type="text" id="f_src_schema" placeholder="напр. YOUR_SRC_SCHEMA">
+          </div>
+          <div class="field">
+            <label>Дельта-таблица ($$P_SRC_TABLE)</label>
+            <input type="text" id="f_src_delta_table" placeholder="напр. YOUR_SOURCE_TABLE_DMDELTA">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOURCE WORKFLOWS -->
+    <div class="section">
+      <div class="section-title">🔗 Потоки-источники (подписки)</div>
+      <div class="section-body">
+        <div class="sw-row header">
+          <span>Папка источника</span>
+          <span>Воркфлоу источника</span>
+          <span></span>
+        </div>
+        <div id="swRows"></div>
+        <button class="btn btn-ghost btn-sm" onclick="addSwRow()">＋ Добавить источник</button>
+        <small style="color:var(--gray-400)">eventget_id=1 по умолчанию. Если не нужно — оставьте пустым.</small>
+      </div>
+    </div>
+
+    <!-- GENERATE BUTTON -->
+    <button class="btn btn-primary" id="btnGenerate" onclick="generate()">
+      <div class="spinner"></div>
+      <span>⚡ Сгенерировать PL/SQL</span>
+    </button>
+
+  </div>
+  <!-- ═══════════════════════════════ RIGHT PANEL ═══════════════════════════════ -->
+  <div class="panel-right">
+    <div class="panel-right-header">
+      <span>📄 Сгенерированный PL/SQL скрипт</span>
+      <div class="sql-actions">
+        <button class="btn btn-ghost btn-sm" onclick="copySql()">📋 Копировать</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearSql()">🗑 Очистить</button>
+      </div>
+    </div>
+    <textarea id="sqlOutput" spellcheck="false"
+      placeholder="Здесь появится сгенерированный PL/SQL скрипт...&#10;&#10;1. Загрузите XML-файл&#10;2. Заполните параметры&#10;3. Нажмите «Сгенерировать»"></textarea>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+  // ══ STATE ══════════════════════════════════════════════════════
+  let parsedData  = {};
+  let tableType   = 'OTHER';
+  let sessions    = [];
+
+  // ══ DROP ZONE ══════════════════════════════════════════════════
+  const dropZone  = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) uploadFile(file);
+  });
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) uploadFile(fileInput.files[0]);
+  });
+
+  async function uploadFile(file) {
+    const fd = new FormData();
+    fd.append('file', file);
+    dropZone.querySelector('p').textContent = '⏳ Парсим XML...';
+    try {
+      const res  = await fetch('/api/parse', { method: 'POST', body: fd });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error);
+      fillForm(json.data);
+      dropZone.innerHTML = `<div class="icon">✅</div><p>${file.name}</p><small>Данные извлечены — проверьте поля</small>`;
+      dropZone.classList.add('parsed');
+      toast('XML успешно разобран');
+    } catch(e) {
+      toast('Ошибка: ' + e.message, true);
+      dropZone.querySelector('p').textContent = 'Перетащите или нажмите для выбора';
+    }
+  }
+
+  // ══ FILL FORM ══════════════════════════════════════════════════
+  function fillForm(data) {
+    parsedData = data;
+    setVal('f_folder_name',      data.folder_name);
+    setVal('f_workflow_name',    data.workflow_name);
+    setVal('f_fsd_description',  data.fsd_description);
+    setVal('f_tgt_schema',       data.tgt_schema);
+    setVal('f_target_name',      data.target_name);
+    setVal('f_src_schema',       data.src_schema);
+    setVal('f_src_delta_table',  data.src_delta_table);
+
+    // Сессии
+    sessions = data.sessions || [];
+    const sl = document.getElementById('sessionsList');
+    if (sessions.length) {
+      sl.innerHTML = sessions.map(s => `<span class="session-tag">${s}</span>`).join('');
+    } else {
+      sl.innerHTML = '<span class="sessions-empty">Сессии не найдены</span>';
+    }
+
+    // Тип таблицы
+    selectTypeByValue(data.table_type || 'OTHER');
+  }
+
+  function setVal(id, val) {
+    const el = document.getElementById(id);
+    if (el && val) el.value = val;
+  }
+
+  // ══ TABLE TYPE ══════════════════════════════════════════════════
+  function selectType(el) {
+    document.querySelectorAll('.type-opt').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    tableType = el.dataset.type;
+  }
+  function selectTypeByValue(val) {
+    const el = document.querySelector(`.type-opt[data-type="${val}"]`);
+    if (el) selectType(el);
+  }
+
+  // ══ SOURCE WORKFLOWS ═══════════════════════════════════════════
+  let swCount = 0;
+  function addSwRow(folderFrom='', wfFrom='') {
+    swCount++;
+    const id = `sw_${swCount}`;
+    const row = document.createElement('div');
+    row.className = 'sw-row';
+    row.id = id;
+    row.innerHTML = `
+      <input type="text" class="sw-folder" placeholder="YOUR_SRC_FOLDER" value="${folderFrom}">
+      <input type="text" class="sw-wf"     placeholder="WF_SOME_WORKFLOW" value="${wfFrom}">
+      <button class="btn-del" onclick="document.getElementById('${id}').remove()">✕</button>
+    `;
+    document.getElementById('swRows').appendChild(row);
+  }
+
+  function getSourceWorkflows() {
+    const rows = document.querySelectorAll('#swRows .sw-row');
+    const result = [];
+    rows.forEach(row => {
+      const folder = row.querySelector('.sw-folder').value.trim();
+      const wf     = row.querySelector('.sw-wf').value.trim();
+      if (folder || wf) {
+        result.push({ folder_from: folder, wf_from: wf, eventget_id: 1 });
+      }
+    });
+    return result;
+  }
+
+  // ══ GENERATE ══════════════════════════════════════════════════
+  async function generate() {
+    const patchCode = document.getElementById('f_patch_code').value.trim();
+    if (!patchCode) {
+      toast('Укажите номер задачи JIRA', true);
+      document.getElementById('f_patch_code').focus();
+      return;
+    }
+
+    const btn = document.getElementById('btnGenerate');
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    const params = {
+      folder_name:       document.getElementById('f_folder_name').value.trim(),
+      workflow_name:     document.getElementById('f_workflow_name').value.trim(),
+      fsd_description:   document.getElementById('f_fsd_description').value.trim(),
+      tgt_schema:        document.getElementById('f_tgt_schema').value.trim(),
+      target_name:       document.getElementById('f_target_name').value.trim(),
+      src_schema:        document.getElementById('f_src_schema').value.trim(),
+      src_delta_table:   document.getElementById('f_src_delta_table').value.trim(),
+      patch_code:        patchCode,
+      reg_name:          document.getElementById('f_reg_name').value.trim(),
+      sessions:          sessions,
+      source_workflows:  getSourceWorkflows(),
+      table_type:        tableType,
+    };
+
+    try {
+      const res  = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error);
+      document.getElementById('sqlOutput').value = json.sql;
+      toast('Скрипт сгенерирован ✓');
+    } catch(e) {
+      toast('Ошибка: ' + e.message, true);
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  }
+
+  // ══ UTILS ══════════════════════════════════════════════════════
+  function copySql() {
+    const ta = document.getElementById('sqlOutput');
+    if (!ta.value) { toast('Сначала сгенерируйте скрипт', true); return; }
+    navigator.clipboard.writeText(ta.value).then(() => toast('Скопировано в буфер ✓'));
+  }
+
+  function clearSql() {
+    document.getElementById('sqlOutput').value = '';
+  }
+
+  let toastTimer;
+  function toast(msg, isError = false) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'show' + (isError ? ' error' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.className = '', 3000);
+  }
+</script>
+</body>
+</html>
